@@ -1,0 +1,1 @@
+Đọc START_HERE.md, AI_RULES.md, PROJECT.md, context/INDEX.md và context/CURRENT.md. Chưa code. Hãy khảo sát project/ bằng rg, xác nhận baseline, sau đó hoàn thiện specification và đề xuất task đầu tiên có acceptance criteria đo được.

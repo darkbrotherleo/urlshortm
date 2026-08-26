@@ -1,0 +1,1 @@
+Đọc AI_RULES.md, context/CURRENT.md và active plan được ghi trong đó. Tiếp tục từ exact next action, không làm lại phần đã đạt. Thực hiện test-first, cập nhật evidence và checkpoint khi hoàn tất.

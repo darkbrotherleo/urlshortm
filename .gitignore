@@ -1,0 +1,10 @@
+# App runtime
+config.local.php
+
+# Logs / temp
+*.log
+*.sqlite
+
+# Uploads
+uploads/*
+!uploads/.htaccess

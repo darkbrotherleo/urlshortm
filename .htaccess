@@ -1,0 +1,14 @@
+# Không cho truy cập web vào các thư mục nội bộ.
+RewriteEngine On
+
+# Chặn trực tiếp các thư mục/khối nhạy cảm.
+RewriteRule ^(app|database|tests|scripts|\.mark-repo)(/|$) - [F,L]
+RewriteRule ^config\.local\.php$ - [F,L]
+
+# Phục vụ file/dir thật (assets) như bình thường.
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Mọi request còn lại -> front controller.
+RewriteRule ^ index.php [L]

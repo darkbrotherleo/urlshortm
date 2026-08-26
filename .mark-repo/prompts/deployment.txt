@@ -1,0 +1,1 @@
+Đọc AI_RULES.md, quality/CHECKLIST.md, playbooks/deployment.md và context/CURRENT.md. Chỉ triển khai hạng mục đã duyệt; hoàn thành theo thứ tự, phần nào đạt thì ghi evidence phần đó. Không tuyên bố hoàn tất nếu verification chưa PASS.
