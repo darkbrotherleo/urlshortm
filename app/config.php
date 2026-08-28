@@ -29,6 +29,15 @@ $app = [
         'max_bytes' => 5 * 1024 * 1024,
         'extensions'=> ['image/jpeg' => 'jpg', 'image/png' => 'png', 'image/webp' => 'webp', 'image/gif' => 'gif'],
     ],
+    'domains'        => [
+        'dns_check'  => $env('URLSHORTM_DOMAINS_DNS_CHECK') !== '0',
+        'relay_host' => $env('URLSHORTM_DOMAINS_RELAY_HOST') ?? 'links.urlshortm.com',
+    ],
+    'tracking'       => [
+        'ip_salt'      => $env('URLSHORTM_TRACKING_IP_SALT') ?? 'urlshortm-track-v1',
+        'geoip_file'   => $env('URLSHORTM_GEOIP_FILE') ?? dirname(__DIR__) . '/data/geo/ip-country.csv',
+        'store_raw_ip' => $env('URLSHORTM_STORE_RAW_IP') !== '0',
+    ],
     'rate_limit'     => [
         'shorten' => [
             'limit'  => (int) ($localConfig['rate_shorten_limit'] ?? 50),

@@ -7,6 +7,8 @@
  * @var array<string,mixed>   $values
  * @var array<int, array{id:int,name:string,total_links:int}> $folders
  * @var array<int, array{id:int,code:string,name:?string}> $pixels
+ * @var array<int, array{id:int,domain:string,is_verified:int}> $domains
+ * @var array<int, array{id:int,name:string,utm_campaign:?string,utm_medium:?string,utm_source:?string,utm_term:?string,utm_content:?string}> $utmProfiles
  * @var array<string,string>  $types
  * @var string|null           $error
  * @var array<string,mixed>|null $link
@@ -54,6 +56,30 @@ $currentThumb = (string) ($values['thumbnail'] ?? '');
 
     <form method="post" action="<?= \App\escape($actionUrl) ?>" class="lform-card" id="link-form" enctype="multipart/form-data">
         <?= $csrf->field() ?>
+
+        <section class="lform-section lform-preview-section">
+            <h2 class="lform-section-title">Xem trước link</h2>
+            <div class="link-preview" id="link-preview">
+                <div class="link-preview-media" id="link-preview-media">
+                    <img
+                        id="link-preview-thumb"
+                        alt="Thumbnail link"
+                        <?php if ($currentThumb !== ''): ?>src="<?= \App\escape(\App\url_for(ltrim($currentThumb, '/'))) ?>"<?php endif; ?>
+                        <?= $currentThumb === '' ? 'hidden' : '' ?>
+                    >
+                    <span class="link-preview-placeholder" id="link-preview-placeholder" <?= $currentThumb === '' ? '' : 'hidden' ?> aria-hidden="true">
+                        <span class="brand-mark"></span>
+                        <small>Chưa có ảnh</small>
+                    </span>
+                </div>
+                <div class="link-preview-body">
+                    <span class="link-preview-type" id="link-preview-type"></span>
+                    <h3 class="link-preview-title" id="link-preview-title"></h3>
+                    <p class="link-preview-desc" id="link-preview-desc"></p>
+                    <p class="link-preview-url" id="link-preview-url"></p>
+                </div>
+            </div>
+        </section>
 
         <section class="lform-section">
             <h2 class="lform-section-title">Loại link &amp; địa chỉ</h2>
@@ -128,6 +154,22 @@ $currentThumb = (string) ($values['thumbnail'] ?? '');
 
         <section class="lform-section">
             <h2 class="lform-section-title">Add UTM tags</h2>
+            <div class="form-field">
+                <label for="utm-profile">Dùng profile UTM có sẵn</label>
+                <select id="utm-profile">
+                    <option value="">— Chọn profile (tự điền nhanh) —</option>
+                    <?php foreach ($utmProfiles as $profile): ?>
+                        <option
+                            value="<?= (int) $profile['id'] ?>"
+                            data-campaign="<?= \App\escape((string) $profile['utm_campaign']) ?>"
+                            data-medium="<?= \App\escape((string) $profile['utm_medium']) ?>"
+                            data-source="<?= \App\escape((string) $profile['utm_source']) ?>"
+                            data-term="<?= \App\escape((string) $profile['utm_term']) ?>"
+                            data-content="<?= \App\escape((string) $profile['utm_content']) ?>"
+                        ><?= \App\escape($profile['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
             <div class="lform-grid">
                 <?php foreach (['utm_campaign' => 'UTM Campaign', 'utm_medium' => 'UTM Medium', 'utm_source' => 'UTM Source', 'utm_term' => 'UTM Term', 'utm_content' => 'UTM Content'] as $field => $label): ?>
                     <div class="form-field">
@@ -145,8 +187,13 @@ $currentThumb = (string) ($values['thumbnail'] ?? '');
                     <label for="domain">Choose domain name</label>
                     <select id="domain" name="domain">
                         <option value="">Local (mặc định)</option>
+                        <?php foreach ($domains as $domain): ?>
+                            <option value="<?= \App\escape($domain['domain']) ?>" <?= $values['domain'] === $domain['domain'] ? 'selected' : '' ?>>
+                                <?= \App\escape($domain['domain']) ?><?= $domain['is_verified'] ? '' : ' (chưa xác minh)' ?>
+                            </option>
+                        <?php endforeach; ?>
                     </select>
-                    <p class="lform-hint">Hiện tại dùng Local. Sau khi thiết lập trong admin, danh sách domain sẽ hiển thị tại đây.</p>
+                    <p class="lform-hint">Hiện tại dùng Local. Domain bạn thêm trong Cài đặt sẽ hiển thị tại đây.</p>
                 </div>
                 <div class="form-field">
                     <label for="custom_slug">Customize phần sau của link</label>

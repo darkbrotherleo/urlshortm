@@ -9,7 +9,7 @@ final class UrlRepository
 {
     private const COLUMNS = 'id, slug, target_url, click_count, user_id, folder_id, link_type,
         title, description, thumbnail, pixels, utm_campaign, utm_medium, utm_source, utm_term,
-        utm_content, domain, password_hash, starts_at, ends_at, created_at, updated_at';
+        utm_content, domain, password_hash, starts_at, ends_at, is_active, created_at, updated_at';
 
     public function __construct(private readonly PDO $pdo)
     {
@@ -198,5 +198,100 @@ final class UrlRepository
             'total_links'  => (int) ($row['total_links'] ?? 0),
             'total_clicks' => (int) ($row['total_clicks'] ?? 0),
         ];
+    }
+
+    /**
+     * Danh sách link cho admin (join user; tìm theo slug / username / email).
+     *
+     * @return array<int,array<string,mixed>>
+     */
+    public function findAllForAdmin(?string $search, int $limit, int $offset): array
+    {
+        [$where, $params] = $this->adminWhere($search);
+        $stmt = $this->pdo->prepare(
+            'SELECT l.*, u.email AS user_email, COALESCE(NULLIF(u.display_name, \'\'), u.email) AS username
+             FROM short_links l LEFT JOIN users u ON u.id = l.user_id' . $where
+            . ' ORDER BY l.id DESC LIMIT ' . max(1, $limit) . ' OFFSET ' . max(0, $offset)
+        );
+        $stmt->execute($params);
+
+        return $stmt->fetchAll();
+    }
+
+    public function countAllForAdmin(?string $search): int
+    {
+        [$where, $params] = $this->adminWhere($search);
+        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM short_links l LEFT JOIN users u ON u.id = l.user_id' . $where);
+        $stmt->execute($params);
+
+        return (int) $stmt->fetchColumn();
+    }
+
+    public function toggleActive(int $id): void
+    {
+        $stmt = $this->pdo->prepare('UPDATE short_links SET is_active = 1 - is_active WHERE id = ?');
+        $stmt->execute([$id]);
+    }
+
+    /**
+     * Cập nhật link bởi admin (allowlist cột cố định).
+     *
+     * @param array<string,mixed> $fields
+     */
+    public function updateByAdmin(int $id, array $fields): void
+    {
+        $allowed = ['target_url', 'title', 'description', 'ends_at', 'is_active'];
+        $sets = [];
+        $params = [];
+        foreach ($allowed as $col) {
+            if (!array_key_exists($col, $fields)) {
+                continue;
+            }
+            $sets[] = '`' . $col . '` = ?';
+            $params[] = $fields[$col] !== '' ? $fields[$col] : null;
+        }
+        if ($sets === []) {
+            return;
+        }
+        $params[] = $id;
+        $this->pdo->prepare('UPDATE short_links SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($params);
+    }
+
+    /**
+     * Tự xoá link khách (user_id NULL) không được chỉnh sửa trong $days ngày.
+     *
+     * @return int số link đã xoá
+     */
+    public function cleanupGuestLinks(int $days): int
+    {
+        $days = max(1, (int) $days);
+        if ($this->pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+            $sql = "DELETE FROM short_links WHERE user_id IS NULL
+                    AND COALESCE(updated_at, created_at) < datetime('now', '-" . $days . " days')";
+        } else {
+            $sql = "DELETE FROM short_links WHERE user_id IS NULL
+                    AND COALESCE(updated_at, created_at) < DATE_SUB(NOW(), INTERVAL " . $days . " DAY)";
+        }
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute();
+
+        return $stmt->rowCount();
+    }
+
+    /**
+     * @return array{0:string,1:array<int,string>}
+     */
+    private function adminWhere(?string $search): array
+    {
+        if ($search !== null && trim($search) !== '') {
+            $term = '%' . trim($search) . '%';
+
+            return [
+                ' WHERE (l.slug LIKE ? OR l.target_url LIKE ? OR u.email LIKE ? OR COALESCE(u.display_name, \'\') LIKE ?)',
+                [$term, $term, $term, $term],
+            ];
+        }
+
+        return ['', []];
     }
 }

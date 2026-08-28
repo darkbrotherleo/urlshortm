@@ -45,7 +45,7 @@ echo \App\render('header', ['title' => $title]);
                 <button id="login-btn" type="submit" class="btn btn-primary btn-block btn-lg">Đăng nhập</button>
             </form>
 
-            <p class="auth-switch">Chưa có tài khoản? <a href="<?= url_for('dang-ky') ?>">Đăng ký ngay</a></p>
+            <p class="auth-switch"><a href="<?= url_for('quen-mat-khau') ?>">Quên mật khẩu?</a> · Chưa có tài khoản? <a href="<?= url_for('dang-ky') ?>">Đăng ký ngay</a></p>
         </div>
     </div>
 </section>

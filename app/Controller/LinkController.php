@@ -4,13 +4,17 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Config;
+use App\Repository\DomainRepository;
 use App\Repository\FolderRepository;
 use App\Repository\PixelRepository;
 use App\Repository\UrlRepository;
+use App\Repository\UtmProfileRepository;
 use App\Security\Csrf;
 use App\Security\LinkType;
+use App\Service\ImageProcessor;
 use App\Service\LinkService;
 use App\Service\LinkValidationException;
+use App\Service\SiteSettingsService;
 
 final class LinkController
 {
@@ -24,8 +28,12 @@ final class LinkController
         private readonly UrlRepository $urlRepository,
         private readonly FolderRepository $folderRepository,
         private readonly PixelRepository $pixelRepository,
+        private readonly DomainRepository $domainRepository,
+        private readonly UtmProfileRepository $utmProfileRepository,
         private readonly LinkService $linkService,
         private readonly LinkType $linkType,
+        private readonly SiteSettingsService $site,
+        private readonly ImageProcessor $images,
         private readonly Csrf $csrf
     ) {
     }
@@ -125,8 +133,11 @@ final class LinkController
 
     private function renderForm(string $mode, array $values, array $user, ?string $error, ?array $link): never
     {
-        $folders = $this->folderRepository->findByUser((int) $user['id']);
-        $pixels = $this->pixelRepository->findAllActive();
+        $userId = (int) $user['id'];
+        $folders = $this->folderRepository->findByUser($userId);
+        $pixels = $this->pixelRepository->findByUser($userId);
+        $domains = $this->domainRepository->findVerifiedByUser($userId);
+        $utmProfiles = $this->utmProfileRepository->findByUser($userId);
 
         http_response_code($error !== null ? 400 : 200);
         echo \App\render('link-form', [
@@ -135,6 +146,8 @@ final class LinkController
             'values'   => $values,
             'folders'  => $folders,
             'pixels'   => $pixels,
+            'domains'  => $domains,
+            'utmProfiles' => $utmProfiles,
             'types'    => LinkType::LABELS,
             'error'    => $error,
             'link'     => $link,
@@ -248,12 +261,13 @@ final class LinkController
             throw new LinkValidationException('File không phải ảnh hợp lệ.');
         }
 
-        $extensions = (array) Config::get('app.uploads.extensions', []);
+        // Định dạng ảnh theo cài đặt Media (định dạng không chọn -> không tải lên được)
+        $allowedFormats = $this->site->mediaFormats();
         $mime = $info['mime'] ?? '';
-        $ext = $extensions[$mime] ?? null;
-        if ($ext === null) {
-            throw new LinkValidationException('Định dạng ảnh không hỗ trợ (JPG, PNG, WEBP, GIF).');
+        if (!$this->images->isAllowed($mime, $allowedFormats)) {
+            throw new LinkValidationException('Định dạng ảnh không được phép (chỉ: ' . implode(', ', $allowedFormats) . ').');
         }
+        $ext = $this->images->extForMime($mime) ?? 'bin';
 
         $dir = (string) Config::get('app.uploads.dir', dirname(__DIR__, 2) . '/uploads');
         if (!is_dir($dir)) {
@@ -267,6 +281,13 @@ final class LinkController
         $dest = rtrim($dir, '/\\') . DIRECTORY_SEPARATOR . $name;
         if (!move_uploaded_file((string) $file['tmp_name'], $dest)) {
             throw new LinkValidationException('Không thể lưu ảnh thumbnail.');
+        }
+
+        // Nén / chuyển đổi theo cài đặt Media
+        $result = $this->images->process($dest, $mime, $this->site->mediaCompress(), $this->site->mediaConvert());
+        if ($result !== null) {
+            [$dest, $mime] = $result;
+            $name = basename($dest);
         }
 
         // Xoá ảnh cũ nếu là ảnh đã upload

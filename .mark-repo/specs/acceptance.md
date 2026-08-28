@@ -46,6 +46,21 @@ Mỗi tiêu chí phải quan sát hoặc đo được.
 | AC-044 | Thumbnail upload | Form tạo/sửa link | - | Upload ảnh (JPG/PNG/WEBP/GIF ≤5MB), validate MIME, tên ngẫu nhiên, lưu `/uploads/...`, chặn thực thi | automated (smoke) + MySQL |
 | AC-045 | Pixel droplist | Form tạo/sửa link | - | Droplist liệt kê Pixel ID kèm ô tick; chọn bao nhiêu thì lưu bấy nhiêu | automated (smoke) + MySQL |
 | AC-046 | Bảo vệ link = toggle | Form tạo/sửa link | - | Bật + nhập pass -> đặt; bật + bỏ trống -> giữ; tắt -> xoá mật khẩu; không còn tick "Xoá mật khẩu" | automated (unit) |
+| AC-047 | Khung xem trước link | Form tạo/sửa link | - | Preview live: thumbnail, title, description, short URL, loại link; cập nhật theo thao tác | automated (markup) + manual |
+| AC-048 | Cài đặt: Pixels/Domain/UTM | Sidebar "Cài đặt" | - | Nhóm có 4 con (Tài khoản, Thiết lập Pixels, Custom domain, UTMs tracking); pixel/domain/UTM tạo ra xuất hiện trong form tạo link | automated (smoke) + MySQL |
+| AC-049 | Thiết lập Pixels nâng cao | Tab Pixels | - | Form có Select the Platform/Name/Pixel ID; bảng Name/Platform/Value/Creation date/Action; link hướng dẫn lấy Pixel ID (Việt hoá) tới `/tro-giup/pixel-id` | automated (smoke) + MySQL |
+| AC-050 | Pixels: droplist + Sửa/Xoá | Tab Pixels | - | Droplist platform được style (chevron, focus); pixel của user có Action Sửa (prefill + update) và Xoá | automated (smoke) + MySQL |
+| AC-051 | Xác minh Custom Domain | Tab Domains | - | Domain thật: tạo token TXT + nút Xác minh (kiểm tra DNS TXT); localhost/127.0.0.1 tự xác minh; chỉ domain đã xác minh xuất hiện trong form link | automated (smoke) + MySQL |
+| AC-052 | Hướng dẫn thêm tên miền | Tab Domains + `/tro-giup/custom-domain` | - | Guide 5 bước (DNS, CNAME relay, lan truyền, thêm domain) Việt hoá; link tới trang hướng dẫn đầy đủ | automated (smoke) |
+| AC-053 | Wiki tài liệu | Footer "Trợ giúp" + `/tro-giup` | - | Trang wiki tài liệu: Mục lục + 13 bài viết có nội dung thật (tạo link, bảo vệ, QR, chia sẻ, domain, pixel, FAQ...); không phải lưới link sang trang tính năng | automated (smoke) |
+| AC-054 | UTM tracking | Tạo link có UTM rồi mở link | - | Redirect gắn `utm_*` vào URL đích (chỉ http/https, bỏ trường rỗng) để Google Analytics đo được | automated (smoke + unit) + MySQL |
+| AC-055 | GĐ0 tracking | Mở link ngắn | - | Ghi 1 `click_events` mỗi redirect: opened_at, ip_hash (SHA-256+salt), user_agent, referrer, user_id | automated (smoke) + MySQL |
+| AC-056 | GĐ1 làm giàu | Mở link có UA + IP | - | `click_events` điền device/browser/os (parse UA) và country (GeoIP CSV, private/local -> null) | automated (unit + smoke) + MySQL |
+| AC-057 | Báo cáo (GĐ2) | Tab Báo cáo | - | Summary (tổng click, TB/ngày, link) + biểu đồ Chart.js theo ngày/thiết bị/trình duyệt/OS/quốc gia/referrer/top link; bộ lọc link + khoảng thời gian | automated (smoke) + MySQL |
+| AC-058 | Báo cáo nâng cao (GĐ3) | Tab Báo cáo | - | Bảng chi tiết lượt mở (phân trang 50/trang) + Export CSV (UTF-8 BOM, giữ filter) | automated (smoke + integration) + MySQL |
+| AC-059 | Nhân khẩu học (GĐ4) | Tab Cài đặt → Nhân khẩu học (Meta) + Tab Báo cáo | Ad Account ID + Access Token do user nhập | Cấu hình Meta (lưu Ad Account + token, token che dấu chỉ lộ 4 ký tự cuối); lấy phân bổ độ tuổi/giới tính (breakdown age,gender, 90 ngày); lưu snapshot + biểu đồ trong Báo cáo; tuân thủ chính sách Meta, dữ liệu tổng hợp không PII | automated (unit + integration + smoke) + MySQL |
+| AC-060 | Kích hoạt tài khoản (v20) | Trang đăng ký → email kích hoạt → /kich-hoat | SMTP cấu hình để gửi email | Đăng ký tạo user PENDING + token 24h + gửi email, KHÔNG tự đăng nhập; /kich-hoat kích hoạt + tự đăng nhập; login PENDING bị từ chối "chưa được kích hoạt"; token sai/hết hạn → 400 | automated (integration + smoke) + MySQL |
+| AC-061 | Quên mật khẩu (v20) | Trang đăng nhập → Quên mật khẩu → email → /dat-lai-mat-khau | SMTP cấu hình | /quen-mat-khau gửi liên kết đặt lại (token 30 phút); /dat-lai-mat-khau đổi mật khẩu thành công; token dùng 1 lần; hết hạn/sai bị từ chối; đăng nhập được bằng mật khẩu mới | automated (integration + smoke) + MySQL |
 
 ## Global gates
 

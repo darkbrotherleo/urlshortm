@@ -1,12 +1,12 @@
 <?php
 /** @var string $title */
 ?><!DOCTYPE html>
-<html lang="vi">
+<html lang="<?= \App\escape(\App\site_seo_lang()) ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="robots" content="index, follow">
-    <meta name="description" content="UrlShortM giúp bạn rút gọn đường dẫn dài thành link ngắn gọn, dễ chia sẻ và biết rõ có bao nhiêu người đã bấm vào.">
+    <?= \App\site_seo_head() ?>
     <title><?= escape($title) ?></title>
     <link rel="stylesheet" href="<?= url_for('assets/css/style.css') ?>">
     <script>document.documentElement.classList.add('js');</script>
@@ -14,6 +14,7 @@
     <link rel="preload" href="<?= url_for('assets/fonts/lexend-latin.woff2') ?>" as="font" type="font/woff2" crossorigin>
 </head>
 <body>
+<?= \App\site_seo_body() ?>
 <header class="site-header">
     <div class="container nav">
         <a class="brand" href="<?= url_for('/') ?>">
@@ -21,9 +22,10 @@
             UrlShortM
         </a>
         <nav class="nav-links" aria-label="Điều hướng chính">
-            <a href="#tinh-nang">Tính năng</a>
-            <a href="#cach-hoat-dong">Cách hoạt động</a>
-            <a href="#cau-hoi">Câu hỏi</a>
+            <a href="<?= url_for('tinh-nang') ?>">Tính năng</a>
+            <a href="<?= url_for('') ?>#cach-hoat-dong">Cách hoạt động</a>
+            <a href="<?= url_for('') ?>#cau-hoi">Câu hỏi</a>
+            <a href="<?= url_for('bang-gia') ?>">Bảng giá</a>
         </nav>
         <?php $user = \App\current_user(); ?>
         <div class="nav-auth">

@@ -34,6 +34,13 @@ namespace {
         }
     }
 
+    if (!function_exists('current_admin')) {
+        function current_admin(): ?array
+        {
+            return \App\current_admin();
+        }
+    }
+
     if (!function_exists('csrf_field')) {
         function csrf_field(): string
         {
@@ -45,6 +52,13 @@ namespace {
         function short_url_for(array $link): string
         {
             return \App\short_url_for($link);
+        }
+    }
+
+    if (!function_exists('country_label')) {
+        function country_label(?string $code): string
+        {
+            return \App\country_label($code);
         }
     }
 }

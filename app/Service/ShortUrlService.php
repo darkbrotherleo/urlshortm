@@ -15,7 +15,8 @@ final class ShortUrlService
         private readonly UrlRepository $repository,
         private readonly UrlNormalizer $normalizer,
         private readonly SlugGenerator $slugGenerator,
-        private readonly RateLimiter $rateLimiter
+        private readonly RateLimiter $rateLimiter,
+        private readonly ?UserPlanService $plan = null
     ) {
     }
 
@@ -29,6 +30,13 @@ final class ShortUrlService
      */
     public function create(string $rawTarget, string $ip, ?int $userId = null): array
     {
+        if ($userId !== null && $this->plan !== null && !$this->plan->canCreateLink($userId)) {
+            $max = $this->plan->limits($userId)['max_links'];
+            throw new UrlValidationException(
+                'Bạn đã đạt giới hạn ' . ($max ?? 0) . ' link của gói hiện tại. Hãy xoá bớt link hoặc nâng cấp gói.'
+            );
+        }
+
         $target = $this->normalizer->normalize($rawTarget);
         if ($target === null) {
             throw new UrlValidationException('URL không hợp lệ. Vui lòng nhập địa chỉ http:// hoặc https://.');

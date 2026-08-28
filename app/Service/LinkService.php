@@ -15,7 +15,8 @@ final class LinkService
         private readonly UrlRepository $repository,
         private readonly LinkType $linkType,
         private readonly SlugGenerator $slugGenerator,
-        private readonly SlugValidator $slugValidator
+        private readonly SlugValidator $slugValidator,
+        private readonly ?UserPlanService $plan = null
     ) {
     }
 
@@ -28,6 +29,14 @@ final class LinkService
      */
     public function create(array $data, int $userId): array
     {
+        if ($this->plan !== null && !$this->plan->canCreateLink($userId)) {
+            $max = $this->plan->limits($userId)['max_links'];
+            $usage = $this->plan->usage($userId)['links'];
+            throw new LinkValidationException(
+                'Bạn đã đạt giới hạn ' . ($max ?? 0) . ' link của gói hiện tại (' . $usage . '/' . ($max ?? 0) . '). Hãy xoá bớt link hoặc nâng cấp gói.'
+            );
+        }
+
         $fields = $this->prepareFields($data, $userId, null);
 
         $slug = $this->resolveSlug((string) ($data['custom_slug'] ?? ''), null);

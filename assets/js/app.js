@@ -185,6 +185,62 @@
             renderPreview();
         }
 
+        /* ---------- Khung xem trước link (live) ---------- */
+        var pvTitle = document.getElementById('link-preview-title');
+        var pvDesc = document.getElementById('link-preview-desc');
+        var pvUrl = document.getElementById('link-preview-url');
+        var pvType = document.getElementById('link-preview-type');
+        var pvThumb = document.getElementById('link-preview-thumb');
+        var pvPlaceholder = document.getElementById('link-preview-placeholder');
+        var pvBase = (slugPreview && slugPreview.getAttribute('data-base')) || '';
+        var titleInput = document.getElementById('title');
+        var descInput = document.getElementById('description');
+        var typeInput = document.getElementById('link_type');
+        var thumbInput = document.getElementById('thumbnail');
+
+        function updatePreview() {
+            if (pvTitle) {
+                pvTitle.textContent = (titleInput && titleInput.value.trim()) || 'Link của bạn';
+            }
+            if (pvDesc) {
+                pvDesc.textContent = (descInput && descInput.value.trim()) || 'Mô tả sẽ hiển thị tại đây.';
+            }
+            if (pvUrl) {
+                var slug = (slugInput && slugInput.value.trim()) || '…';
+                pvUrl.textContent = pvBase + '/' + slug;
+            }
+            if (pvType && typeInput) {
+                var opt = typeInput.options[typeInput.selectedIndex];
+                pvType.textContent = opt ? opt.text : '';
+            }
+        }
+
+        if (titleInput) titleInput.addEventListener('input', updatePreview);
+        if (descInput) descInput.addEventListener('input', updatePreview);
+        if (slugInput) slugInput.addEventListener('input', updatePreview);
+        if (typeInput) typeInput.addEventListener('change', updatePreview);
+
+        if (thumbInput && pvThumb && pvPlaceholder) {
+            thumbInput.addEventListener('change', function () {
+                var file = thumbInput.files && thumbInput.files[0];
+                if (!file) return;
+                var reader = new FileReader();
+                reader.onload = function (e) {
+                    pvThumb.src = e.target.result;
+                    pvThumb.hidden = false;
+                    pvPlaceholder.hidden = true;
+                };
+                reader.readAsDataURL(file);
+            });
+
+            pvThumb.addEventListener('error', function () {
+                pvThumb.hidden = true;
+                pvPlaceholder.hidden = false;
+            });
+        }
+
+        updatePreview();
+
         /* ---------- Pixel droplist: tick chọn nhiều ---------- */
         var pixelDrop = document.getElementById('pixel-drop');
         var pixelPanel = document.getElementById('pixel-panel');
@@ -225,6 +281,26 @@
             });
 
             syncPixels();
+        }
+
+        /* ---------- UTM profile: tự điền nhanh ---------- */
+        var utmProfile = document.getElementById('utm-profile');
+        if (utmProfile) {
+            utmProfile.addEventListener('change', function () {
+                var opt = utmProfile.options[utmProfile.selectedIndex];
+                if (!opt || !opt.value) return;
+                var map = {
+                    utm_campaign: opt.getAttribute('data-campaign'),
+                    utm_medium: opt.getAttribute('data-medium'),
+                    utm_source: opt.getAttribute('data-source'),
+                    utm_term: opt.getAttribute('data-term'),
+                    utm_content: opt.getAttribute('data-content')
+                };
+                Object.keys(map).forEach(function (field) {
+                    var input = document.getElementById(field);
+                    if (input) input.value = map[field] || '';
+                });
+            });
         }
     }
 
@@ -287,6 +363,39 @@
 
         revealEls.forEach(function (el) {
             revealObserver.observe(el);
+        });
+    }
+
+    /* ---------- Menu drawer (nút bấm) ---------- */
+    var menuBtn = document.getElementById('menu-btn');
+    var menuPanel = document.getElementById('dash-menu');
+    var menuOverlay = document.getElementById('dash-overlay');
+    var menuClose = document.getElementById('menu-close');
+
+    function setMenu(open) {
+        if (!menuPanel || !menuOverlay) return;
+        menuPanel.classList.toggle('is-open', open);
+        menuOverlay.hidden = !open;
+        if (menuBtn) menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    if (menuBtn) {
+        menuBtn.addEventListener('click', function () {
+            setMenu(!menuPanel.classList.contains('is-open'));
+        });
+    }
+    if (menuClose) {
+        menuClose.addEventListener('click', function () { setMenu(false); });
+    }
+    if (menuOverlay) {
+        menuOverlay.addEventListener('click', function () { setMenu(false); });
+    }
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') setMenu(false);
+    });
+    if (menuPanel) {
+        menuPanel.querySelectorAll('.dash-nav-item, .dash-nav-sub').forEach(function (a) {
+            a.addEventListener('click', function () { setMenu(false); });
         });
     }
 })();

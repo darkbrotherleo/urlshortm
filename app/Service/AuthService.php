@@ -55,9 +55,124 @@ final class AuthService
             throw $e;
         }
 
-        $this->startSession((int) $id);
+        // Tài khoản mới mặc định gắn gói Free + giữ ở trạng thái PENDING (chờ kích hoạt).
+        $this->repository->subscribeToFreePlan((int) $id);
 
+        $token = bin2hex(random_bytes(24));
+        $this->repository->setStatus((int) $id, 'pending');
+        $this->repository->setActivation((int) $id, $token, date('Y-m-d H:i:s', strtotime('+24 hours')));
+
+        $this->sendActivationEmail($email, $displayName !== '' ? $displayName : $email, $token);
+
+        // KHÔNG tự đăng nhập — chờ khách kích hoạt qua email.
         return $this->repository->findById((int) $id);
+    }
+
+    /**
+     * Kích hoạt tài khoản qua token trong email.
+     *
+     * @return array{id:int,email:string,display_name:?string} user đã kích hoạt (tự đăng nhập)
+     *
+     * @throws AuthException INVALID_INPUT khi token sai/hết hạn
+     */
+    public function activate(string $token): array
+    {
+        $user = $this->repository->findByActivationToken($token);
+        if ($user === null || empty($user['activation_expires_at'])) {
+            throw new AuthException('Liên kết kích hoạt không hợp lệ.', AuthException::INVALID_INPUT);
+        }
+        if (strtotime((string) $user['activation_expires_at']) < time()) {
+            throw new AuthException('Liên kết kích hoạt đã hết hạn. Vui lòng đăng ký lại hoặc liên hệ hỗ trợ.', AuthException::INVALID_INPUT);
+        }
+
+        $this->repository->activate((int) $user['id']);
+        $this->repository->subscribeToFreePlan((int) $user['id']);
+        $this->startSession((int) $user['id']);
+
+        return $this->repository->findById((int) $user['id']);
+    }
+
+    /**
+     * Gửi email đặt lại mật khẩu (token 30 phút). Không báo lỗi nếu email không tồn tại.
+     */
+    public function requestPasswordReset(string $email): void
+    {
+        $email = strtolower(trim($email));
+        $user = $this->repository->findByEmail($email);
+        if ($user === null || $user['status'] === 'disabled') {
+            return;
+        }
+
+        $token = bin2hex(random_bytes(24));
+        $this->repository->setResetToken((int) $user['id'], $token, date('Y-m-d H:i:s', strtotime('+30 minutes')));
+
+        $this->sendResetEmail((string) $user['email'], (string) ($user['display_name'] ?: $user['email']), $token);
+    }
+
+    public function resetTokenValid(string $token): bool
+    {
+        $user = $this->repository->findByResetToken($token);
+        if ($user === null || empty($user['reset_expires_at'])) {
+            return false;
+        }
+
+        return strtotime((string) $user['reset_expires_at']) >= time();
+    }
+
+    /**
+     * @throws AuthException INVALID_INPUT khi token sai/hết hạn hoặc mật khẩu không hợp lệ
+     */
+    public function resetPassword(string $token, string $new, string $confirm): void
+    {
+        $user = $this->repository->findByResetToken($token);
+        if ($user === null || empty($user['reset_expires_at']) || strtotime((string) $user['reset_expires_at']) < time()) {
+            throw new AuthException('Liên kết đặt lại mật khẩu không hợp lệ hoặc đã hết hạn (30 phút).', AuthException::INVALID_INPUT);
+        }
+        if (strlen($new) < 8) {
+            throw new AuthException('Mật khẩu mới phải có ít nhất 8 ký tự.', AuthException::INVALID_INPUT);
+        }
+        if (!hash_equals($new, $confirm)) {
+            throw new AuthException('Mật khẩu mới nhập lại không khớp.', AuthException::INVALID_INPUT);
+        }
+
+        $this->repository->updatePassword((int) $user['id'], password_hash($new, PASSWORD_DEFAULT));
+        $this->repository->clearResetToken((int) $user['id']);
+    }
+
+    private function sendActivationEmail(string $email, string $name, string $token): void
+    {
+        try {
+            $c = \App\Container::getInstance();
+            $mailer = $c->mailer();
+            if (!$mailer->isConfigured()) {
+                return;
+            }
+            $mail = $c->emailTemplates()->render('activate_account', [
+                'name' => $name,
+                'activation_link' => rtrim(\App\base_url(), '/') . '/kich-hoat?token=' . rawurlencode($token),
+            ]);
+            $mailer->send($email, $mail['subject'], $mail['html'], true);
+        } catch (\Throwable) {
+            // Lỗi gửi email không làm hỏng đăng ký.
+        }
+    }
+
+    private function sendResetEmail(string $email, string $name, string $token): void
+    {
+        try {
+            $c = \App\Container::getInstance();
+            $mailer = $c->mailer();
+            if (!$mailer->isConfigured()) {
+                return;
+            }
+            $mail = $c->emailTemplates()->render('forgot_password', [
+                'name' => $name,
+                'reset_link' => rtrim(\App\base_url(), '/') . '/dat-lai-mat-khau?token=' . rawurlencode($token),
+            ]);
+            $mailer->send($email, $mail['subject'], $mail['html'], true);
+        } catch (\Throwable) {
+            // bỏ qua
+        }
     }
 
     /**
@@ -84,6 +199,9 @@ final class AuthService
             throw new AuthException('Email hoặc mật khẩu không đúng.', AuthException::INVALID_CREDENTIALS);
         }
 
+        if ($user['status'] === 'pending') {
+            throw new AuthException('Tài khoản chưa được kích hoạt. Hãy kiểm tra email để kích hoạt tài khoản.', AuthException::ACCOUNT_DISABLED);
+        }
         if ($user['status'] !== 'active') {
             throw new AuthException('Tài khoản đang bị khoá, liên hệ hỗ trợ để được mở lại.', AuthException::ACCOUNT_DISABLED);
         }
@@ -105,6 +223,43 @@ final class AuthService
             }
             session_destroy();
         }
+    }
+
+    /**
+     * @throws AuthException INVALID_INPUT (mật khẩu cũ sai / mới ngắn / nhập lại không khớp)
+     */
+    public function changePassword(int $userId, string $current, string $new, string $confirm): void
+    {
+        $hash = $this->repository->passwordHashOf($userId);
+        if ($hash === null || !password_verify($current, $hash)) {
+            throw new AuthException('Mật khẩu hiện tại không đúng.', AuthException::INVALID_INPUT);
+        }
+        if (strlen($new) < 8) {
+            throw new AuthException('Mật khẩu mới phải có ít nhất 8 ký tự.', AuthException::INVALID_INPUT);
+        }
+        if (!hash_equals($new, $confirm)) {
+            throw new AuthException('Mật khẩu mới nhập lại không khớp.', AuthException::INVALID_INPUT);
+        }
+        if (hash_equals($current, $new)) {
+            throw new AuthException('Mật khẩu mới phải khác mật khẩu hiện tại.', AuthException::INVALID_INPUT);
+        }
+
+        $this->repository->updatePassword($userId, password_hash($new, PASSWORD_DEFAULT));
+    }
+
+    /**
+     * Soft delete: vô hiệu hoá tài khoản (status=disabled) — KHÔNG xoá dữ liệu.
+     *
+     * @throws AuthException INVALID_INPUT khi mật khẩu hiện tại sai
+     */
+    public function deactivate(int $userId, string $current): void
+    {
+        $hash = $this->repository->passwordHashOf($userId);
+        if ($hash === null || !password_verify($current, $hash)) {
+            throw new AuthException('Mật khẩu không đúng.', AuthException::INVALID_INPUT);
+        }
+
+        $this->repository->deactivate($userId);
     }
 
     private function startSession(int $userId): void

@@ -15,6 +15,7 @@
                     <li><a href="#tinh-nang">Tính năng</a></li>
                     <li><a href="#cach-hoat-dong">Cách hoạt động</a></li>
                     <li><a href="#cau-hoi">Câu hỏi thường gặp</a></li>
+                    <li><a href="<?= url_for('tro-giup') ?>">Trợ giúp</a></li>
                 </ul>
             </div>
             <div class="footer-col">
@@ -31,5 +32,6 @@
     </div>
 </footer>
 <script src="<?= url_for('assets/js/app.js') ?>" defer></script>
+<?= \App\site_seo_footer() ?>
 </body>
 </html>

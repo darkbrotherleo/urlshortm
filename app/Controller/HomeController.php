@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Repository\PackageRepository;
 use App\Security\Csrf;
 use App\Service\RateLimitExceededException;
 use App\Service\ShortUrlService;
@@ -12,16 +13,71 @@ final class HomeController
 {
     public function __construct(
         private readonly ShortUrlService $service,
+        private readonly PackageRepository $packages,
         private readonly Csrf $csrf
     ) {
     }
 
     public function index(): never
     {
+        $siteTitle = (string) \App\Container::getInstance()->siteSettingsService()->get('seo_site_title', '');
         $this->renderHome([
-            'title'  => 'UrlShortM — Rút gọn & theo dõi link',
+            'title'  => $siteTitle !== '' ? $siteTitle : 'UrlShortM — Rút gọn & theo dõi link',
             'target' => '',
         ]);
+    }
+
+    public function pricing(): never
+    {
+        http_response_code(200);
+        echo \App\render('pricing', [
+            'title' => 'Bảng giá — UrlShortM',
+            'plans' => $this->packages->findAll(),
+        ]);
+        exit;
+    }
+
+    public function features(): never
+    {
+        http_response_code(200);
+        echo \App\render('features', [
+            'title' => 'Tính năng — UrlShortM',
+            'plans' => $this->packages->findAll(),
+        ]);
+        exit;
+    }
+
+    public function sitemap(): never
+    {
+        $base = rtrim(\App\base_url(), '/');
+        $pages = ['/', '/tinh-nang', '/bang-gia', '/tro-giup', '/dang-ky', '/dang-nhap'];
+
+        $xml = '<?xml version="1.0" encoding="UTF-8"?>' . "\n";
+        $xml .= '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">' . "\n";
+        foreach ($pages as $p) {
+            $xml .= '  <url><loc>' . \App\escape($base . $p) . '</loc><changefreq>daily</changefreq></url>' . "\n";
+        }
+        foreach (\App\Container::getInstance()->urlRepository()->findAllForAdmin(null, 1000, 0) as $link) {
+            if (isset($link['is_active']) && (int) $link['is_active'] !== 1) {
+                continue;
+            }
+            $lastmod = substr((string) (($link['updated_at'] ?? '') ?: ($link['created_at'] ?? '')), 0, 10);
+            $xml .= '  <url><loc>' . \App\escape($base . '/' . $link['slug']) . '</loc>'
+                . ($lastmod !== '' ? '<lastmod>' . \App\escape($lastmod) . '</lastmod>' : '')
+                . '<changefreq>weekly</changefreq></url>' . "\n";
+        }
+        $xml .= '</urlset>' . "\n";
+
+        header('Content-Type: application/xml; charset=UTF-8');
+        echo $xml;
+        exit;
+    }
+
+    public function robotsTxt(): never
+    {
+        header('Content-Type: text/plain; charset=UTF-8');
+        echo \App\robots_txt_content();
+        exit;
     }
 
     public function shorten(): never

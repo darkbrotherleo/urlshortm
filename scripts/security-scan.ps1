@@ -12,7 +12,7 @@ $dangerPatterns = @(
     'passthru\s*\(',
     'assert\s*\(',
     'mysql_connect\s*\(',
-    'query\s*\(\s*["'']?\$'
+    '(?<!http_build_)query\s*\(\s*["'']?\$'
 )
 
 $files = Get-ChildItem -Recurse -Filter *.php -Path $root | Where-Object {

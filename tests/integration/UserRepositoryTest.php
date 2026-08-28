@@ -57,4 +57,32 @@ return function (TestSuite $suite): void {
         $repo->updateLastLogin((int) $id);
         assert_true(true);
     });
+
+    $suite->test('updateProfile: lưu hồ sơ + hoá đơn, giá trị rỗng -> NULL', function (): void {
+        $repo = new UserRepository(make_sqlite());
+        $id = $repo->insert('hd@vidu.vn', 'hash', 'Minh Anh');
+
+        $repo->updateProfile((int) $id, [
+            'phone'        => '0901234567',
+            'address'      => '12 Lê Lợi',
+            'city'         => 'Hồ Chí Minh',
+            'tax_type'     => 'business',
+            'company_name' => 'Công ty TNHH Demo',
+            'tax_id'       => '0312345678',
+            'invoice_name' => 'Công ty TNHH Demo',
+        ]);
+
+        $u = $repo->findById((int) $id);
+        assert_same('0901234567', $u['phone']);
+        assert_same('business', $u['tax_type']);
+        assert_same('0312345678', $u['tax_id']);
+        assert_same('Công ty TNHH Demo', $u['invoice_name']);
+
+        // Xoá trường (chuỗi rỗng) -> NULL
+        $repo->updateProfile((int) $id, ['tax_id' => '', 'phone' => '']);
+        $u2 = $repo->findById((int) $id);
+        assert_null($u2['tax_id']);
+        assert_null($u2['phone']);
+        assert_same('business', $u2['tax_type'], 'trường không gửi không được đổi');
+    });
 };
